@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 
+import { createStage, checkCollision } from '../gameHelpers';
+
 //Styled Components
 import { StyledTetrisWrapper, StyledTetris } from './styles/StyledTetris';
 
 //Custom Hooks
 import { usePlayer } from '../hooks/usePlayer';
 import { useStage } from '../hooks/useStage';
+import { useInterval } from '../hooks/useInterval';
 
 
 //Components
@@ -18,14 +21,89 @@ const Tetris = ( ) => {
     const [dropTime, setDropTime] = useState(null);
     const [gameOver, setGameOver] = useState(false);
 
-    const [player] = usePlayer();
-    const [stage, setStage] = useStage(player);
+    const [player, updatePlayerPos, resetPlayer, playerRotate] = usePlayer();
+    const [stage, setStage] = useStage(player, resetPlayer);
 
 
     console.log('re-render');
-    // console.log(createStage());
+
+    const movePlayer = direction => {
+        //if we are not colliding with anything we move, otherwise we don't do anything
+        if(!checkCollision(player, stage, {x: direction, y: 0})) {
+            updatePlayerPos({ x: direction, y: 0 });
+        }
+   
+    }
+
+    const startGame = () => {
+        console.log('test')
+        //Reset everything
+        setStage(createStage());
+        setDropTime(1000);
+        resetPlayer();
+        setGameOver(false);
+    }
+
+    const drop = () => {
+        if(!checkCollision(player, stage, {x: 0, y: 1})) {
+            updatePlayerPos({x: 0, y: 1, collided: false})
+        } else {
+            // Game OVer
+            //if player hits the top of the are
+            if(player.pos.y < 1) {
+                console.log('Game Over!!!!')
+                setGameOver(true);
+                setDropTime(null);
+            }
+            updatePlayerPos({x: 0, y: 0, collided: true });
+        }
+  
+    }
+
+    const keyUp = ({ keyCode }) => {
+        if (!gameOver) {
+            //down key is 40
+            if(keyCode === 40) {
+                console.log('interval on')
+                setDropTime(1000);
+            }
+        }
+    }
+
+    const dropPlayer = () => {
+        //stop the interval when the player moves the tetromino down with the arrow key
+        console.log('interval off')
+        setDropTime(null);
+        drop();
+        
+    }
+
+    const move = ({ keyCode }) => {
+        if(!gameOver) {
+            //keycode for left arrow is 37
+            if(keyCode === 37) {
+                //movePlayer to the left -1 on x axis
+                movePlayer(-1);
+                //keycode for right arrow is 39
+            } else if(keyCode === 39) {
+                movePlayer(1);
+                //keycode for down arrow is 40
+            } else if(keyCode === 40) {
+                dropPlayer();
+                //keycode for up arrow is 38
+            } else if (keyCode === 38) {
+                //1 is the direction that is sent in, which means the tetromino will be rotated clockwise
+                playerRotate(stage, 1)
+            }
+        }
+    }
+
+    useInterval(() => {
+        drop();
+    }, dropTime)
+ 
     return (
-        <StyledTetrisWrapper>
+        <StyledTetrisWrapper role="button" tabIndex="0" onKeyDown={e => move(e)} onKeyUp={keyUp}>
             <StyledTetris>
             <Stage stage={stage}/>
                 <aside>
@@ -38,7 +116,7 @@ const Tetris = ( ) => {
                         <Display text="Level" />
                     </div>
                     )}
-                <StartButton />
+                <StartButton callback={startGame}/>
                 </aside>
             </StyledTetris>
         </StyledTetrisWrapper>
